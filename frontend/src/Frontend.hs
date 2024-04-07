@@ -22,21 +22,20 @@ import qualified Data.Text as T
 import Obelisk.Frontend
 --import Obelisk.Configs
 import Obelisk.Route
-import Obelisk.Route.Frontend
+-- import Obelisk.Route.Frontend
 import Obelisk.Generated.Static (static)
 
 import EReki (reki,sortNens)
 
 --import Reflex.Dom.Widget.Basic (text, dynText, dyn, el, elAttr, blank)
 --import Reflex.Dom.Builder.Class (inputElement, InputElement (..), DomBuilder)
-import Reflex.Dom.Core (text, dynText, el, el', elAttr, divClass, elAttr', blank, def
-                       ,(=:), leftmost, button, accumDyn, elDynAttr
-                       ,inputElement, InputElement (..), DomBuilder, Prerender
-                       ,PostBuild,Event,domEvent,EventName(Click),MonadHold
-                       ,prerender,Dynamic,zipDynWith,MonadWidget,toggle,ffilter
-                       ,updated,widgetHold,widgetHold_,holdDyn,constDyn,display
-                       ,getPostBuild,performEvent,PerformEvent,TriggerEvent
-                       ,Performable,tickLossyFromPostBuildTime,never,TickInfo(..))
+import Reflex.Dom.Core ( text, dynText, el, elAttr, divClass, elAttr', blank
+                       , (=:), leftmost, button, accumDyn, elDynAttr, prerender
+                       , widgetHold_, holdDyn, domEvent, toggle, zipDynWith
+                       , tickLossyFromPostBuildTime
+                       , DomBuilder, Prerender, PerformEvent, TriggerEvent
+                       , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
+                       , Performable, TickInfo(..))
 
 data Button = ButtonNumber T.Text | ButtonClear 
 
@@ -72,8 +71,6 @@ frontendBody ::
   , PerformEvent t m
   , PostBuild t m
   , Prerender t m
-  , RouteToUrl (R FrontendRoute) m
-  , SetRoute t (R FrontendRoute) m
   , TriggerEvent t m
   ) => m ()
 frontendBody = do
@@ -83,7 +80,7 @@ frontendBody = do
 
   el "p" $ text ""
 
-  el "div" $ chara
+  el "div" chara
 
   el "p" $ text ""
 
@@ -99,7 +96,7 @@ frontendBody = do
   
   return ()
 
-monButton :: MonadWidget t m => m (Event t ())   
+monButton :: DomBuilder t m => m (Event t ())   
 monButton = el "div" (button "もんだい")
 
 buttonClass :: DomBuilder t m => T.Text -> T.Text -> m (Event t ())
@@ -121,7 +118,7 @@ numberPad i = do
   b5 <- ("5" <$) <$> numberButton "5"
   return $ leftmost (take i [b1,b2,b3,b4,b5])
   where
-    numberButton n = buttonClass "pad" n
+    numberButton = buttonClass "pad" 
 
 buttonAction :: 
   ( DomBuilder t m
@@ -192,8 +189,9 @@ makeMon tx
   | otherwise = 
       let (erdata,_) = T.breakOn "=" tx 
        in  T.intercalate "\n" $
-              map (T.pack . (\(i,(_,d)) -> show i <> ": " <> T.unpack (T.tail d)))
-                       (zip [1,2..] (map (T.breakOn "-") (T.splitOn "," erdata)))    
+              zipWith (curry 
+                (T.pack . (\(i,(_,d)) -> show i <> ": " <> T.unpack (T.tail d)))
+                      ) [1::Int,2..] (map (T.breakOn "-") (T.splitOn "," erdata))    
 
 makeKoto :: T.Text -> T.Text
 makeKoto tx
@@ -204,7 +202,7 @@ makeKoto tx
               map (T.pack . (\(n,d) -> show n <> "年: " <> d)) $
               sortNens $
               map ((\(ns,dt) -> ((read . T.unpack) ns,T.unpack (T.tail dt))) . 
-                  (T.breakOn "-")) $
+                  T.breakOn "-") $
               T.splitOn "," erdata    
 
 timer :: 
@@ -218,7 +216,7 @@ timer ::
   ) => m ()
 timer = do
   tev <- tickLossyFromPostBuildTime 1 
-  let tm = (T.pack . show . (+1) . _tickInfo_n) <$> tev
+  let tm = T.pack . show . (+1) . _tickInfo_n <$> tev
   dynText =<< holdDyn "start" tm 
   pure ()
   
@@ -233,8 +231,8 @@ charaAnime ::
   ) => m ()
 charaAnime = do
   tev <- tickLossyFromPostBuildTime 1 
-  let tmi = ((+1) . _tickInfo_n) <$> tev
-  let tmText = (T.pack . show) <$> tmi
+--  let tmi = (+1) . _tickInfo_n <$> tev
+--  let tmText = T.pack . show <$> tmi
 --  let tmChara = charaShow <$> tmi     
   dToggle <- toggle True tev
   let 
@@ -246,8 +244,8 @@ charaAnime = do
 --  dyi <- holdDyn "start" tmText 
 --  el "p" $ dynText dyi
   el "p" $ text ""
-  eChara0 <- elDynAttr "div" dHide1 $ do chara0; timer
-  eChara1 <- elDynAttr "div" dHide2 $ do chara1; timer
+  elDynAttr "div" dHide1 $ do chara0; timer
+  elDynAttr "div" dHide2 $ do chara1; timer
 --  widgetHold_ (charaShow 0) tmChara 
   pure ()
   

@@ -72,8 +72,8 @@ makeJun :: [ERData] -> [Int]
 makeJun erd = let nens = map fst erd
                in map snd (sortNens (zip nens [1,2..]))  
 
-showERData :: ERData -> String
-showERData (nen,koto) = show nen <> "年: " <> koto
+--showERData :: ERData -> String
+--showERData (nen,koto) = show nen <> "年: " <> koto
 
 getRan :: Int -> IO Int
 getRan i = randomRIO (0,i)
