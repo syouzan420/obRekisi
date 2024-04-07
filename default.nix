@@ -15,7 +15,12 @@
   }
 }:
 with obelisk;
-project ./. ({ ... }: {
+project ./. ({ pkgs, ... }: {
+  shellToolOverrides = self: super: {
+    haskell-language-server = pkgs.haskell.packages.ghc8107.haskell-language-server;
+    implicit-hie = pkgs.haskell.packages.ghc8107.implicit-hie;
+    hlint = pkgs.haskell.packages.ghc8107.hlint;
+  };
 
   android = {
     applicationId = "org.yokop.rekisi";

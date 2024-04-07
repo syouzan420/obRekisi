@@ -70,7 +70,7 @@ sortNens ((x,a):xs) =
 
 makeJun :: [ERData] -> [Int]
 makeJun erd = let nens = map fst erd
-               in map snd (sortNens (zip nens [0,1..]))  
+               in map snd (sortNens (zip nens [1,2..]))  
 
 showERData :: ERData -> String
 showERData (nen,koto) = show nen <> "年: " <> koto
