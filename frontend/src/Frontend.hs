@@ -27,15 +27,15 @@ import Obelisk.Generated.Static (static)
 
 import EReki (reki,sortNens)
 
---import Reflex.Dom.Widget.Basic (text, dynText, dyn, el, elAttr, blank)
---import Reflex.Dom.Builder.Class (inputElement, InputElement (..), DomBuilder)
-import Reflex.Dom.Core ( text, dynText, el, elAttr, divClass, elAttr', blank
-                       , (=:), leftmost, button, accumDyn, elDynAttr, prerender
-                       , widgetHold_, holdDyn, domEvent, toggle, zipDynWith
-                       , tickLossyFromPostBuildTime
-                       , DomBuilder, Prerender, PerformEvent, TriggerEvent
-                       , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
-                       , Performable, TickInfo(..))
+import Reflex.Dom.Core 
+  ( text, dynText, el, elAttr, divClass, elAttr', blank
+  , (=:), leftmost, button, accumDyn, elDynAttr, prerender
+  , widgetHold_, holdDyn, domEvent, toggle, zipDynWith
+  , tickLossyFromPostBuildTime
+  , DomBuilder, Prerender, PerformEvent, TriggerEvent
+  , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
+  , Performable, TickInfo(..)
+  )
 
 data Button = ButtonNumber T.Text | ButtonClear 
 
