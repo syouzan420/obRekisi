@@ -3,7 +3,13 @@ version: 0.1
 cabal-version: >= 1.8
 build-type: Simple
 
+common defaults
+  default-extensions:
+    FlexibleContexts
+    OverloadedStrings
+
 library
+  import: defaults
   hs-source-dirs: src
   build-depends: base
                , common
@@ -22,6 +28,7 @@ library
     Frontend
   other-modules:
     EReki
+    Page.About
   ghc-options: -Wall -O -fno-show-valid-hole-fits
                -- unsafe code
                -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields

@@ -1,10 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
-module EReki (reki, sortNens) where
+module EReki (ERData, reki, sortNens) where
 
 import System.Random (randomRIO)
 import qualified Data.Text as T
 
-type ERData = (Int,String)
+type ERData = (Int,T.Text)
 
 erekiData :: [ERData]
 erekiData = [(57,"奴国王が後漢から金印")
@@ -104,13 +104,19 @@ main = do
   mapM_ (putStrLn . showERData . (!!) mondai) jun  
 -}
 
-reki :: Int -> IO T.Text
+reki :: Int -> IO ([ERData],[Int]) 
 reki i = do
   mondai <- selectData i erekiData
   let jun = makeJun mondai
-  let juns = concatMap show jun
-  let montx = T.intercalate "," $ map makeMonTex mondai
-  return (montx <> "=" <> T.pack juns)
+  return (mondai,jun)
 
-makeMonTex :: ERData -> T.Text
-makeMonTex (nen,koto) = T.pack (show nen <> "-" <> koto)
+--reki :: Int -> IO T.Text
+--reki i = do
+--  mondai <- selectData i erekiData
+--  let jun = makeJun mondai
+--  let juns = concatMap show jun
+--  let montx = T.intercalate "," $ map makeMonTex mondai
+--  return (montx <> "=" <> T.pack juns)
+
+--makeMonTex :: ERData -> T.Text
+--makeMonTex (nen,koto) = T.pack (show nen <> "-" <> koto)

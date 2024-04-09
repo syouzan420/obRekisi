@@ -4,11 +4,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Frontend where
 
 import Common.Api (commonStuff)
-import Common.Route
+import Common.Route (FrontendRoute (..))
 --import Control.Lens ((^.))
 --import Control.Monad
 import Control.Monad.IO.Class (liftIO,MonadIO)
@@ -25,13 +26,15 @@ import Obelisk.Route
 -- import Obelisk.Route.Frontend
 import Obelisk.Generated.Static (static)
 
-import EReki (reki,sortNens)
+import qualified Page.About as About
+
+import EReki (ERData, reki, sortNens)
 
 import Reflex.Dom.Core 
   ( text, dynText, el, elAttr, divClass, elAttr', blank
-  , (=:), leftmost, button, accumDyn, elDynAttr, prerender
+  , (=:), leftmost, accumDyn, elDynAttr, prerender
   , widgetHold_, holdDyn, domEvent, toggle, zipDynWith
-  , tickLossyFromPostBuildTime
+  , tickLossyFromPostBuildTime, never
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
   , Performable, TickInfo(..)
@@ -80,33 +83,24 @@ frontendBody = do
 
   el "p" $ text ""
 
-  el "div" chara
+  el "div" elChara
 
   el "p" $ text ""
 
 --  el "div" $ routeLink (FrontendRoute_Main :/ () ) $ button "もんだい" 
 
   el "div" $ do
-    tb <- (buttonAction <$) <$> buttonClass "pad2" "もんだい" 
+    tb <- (elButtonAction <$) <$> buttonClass "pad2" "もんだい" 
     el "p" $ text ""
-    widgetHold_ buttonAction tb 
-    blank
+    widgetHold_ elButtonAction tb 
 
   el "p" $ text ""
   
   return ()
 
-monButton :: DomBuilder t m => m (Event t ())   
-monButton = el "div" (button "もんだい")
-
 buttonClass :: DomBuilder t m => T.Text -> T.Text -> m (Event t ())
 buttonClass c s = do
   (e, _) <- elAttr' "button" ("type" =: "button" <> "class" =: c) $ text s
-  return $ domEvent Click e
-
-reloadButton :: DomBuilder t m => m (Event t ())  
-reloadButton = do
-  (e, _) <- elAttr' "button" ("type" =: "button" <> "class" =: "pad" <> "onClick" =: "location.reload(true);") $ text "OK"
   return $ domEvent Click e
 
 numberPad :: DomBuilder t m => Int -> m (Event t T.Text)
@@ -120,7 +114,7 @@ numberPad i = do
   where
     numberButton = buttonClass "pad" 
 
-buttonAction :: 
+elButtonAction :: 
   ( DomBuilder t m
   , MonadFix m
   , MonadHold t m
@@ -130,28 +124,22 @@ buttonAction ::
   , Prerender t m
   , TriggerEvent t m
   ) => m ()
-buttonAction = do
-  el "div" charaAnime
+elButtonAction = do
+  el "div" elCharaAnime
   el "p" $ text ""
-  (ans,koto) <- mondai
+  (dyAns,dyKoto) <- elMondai
   el "p" $ text ""
   numberButton <- numberPad 5
   clearButton <- buttonClass "pad" "C"
   let buttons = leftmost [ ButtonClear <$ clearButton
                          , ButtonNumber <$> numberButton
                          ]
-  dstate <- accumDyn collectButtonPresses initialState buttons
-  let res = zipDynWith (\a b->if a==b then "せいかい!" else T.empty) ans dstate 
-      res2 = zipDynWith (\a b-> if a/=T.empty then b else T.empty) res koto
-  el "p" $ do
-    dynText dstate
-    blank
-  el "p" $ do
-    dynText res 
-    blank
-  divClass "kai" $ do
-    dynText res2 
-    blank
+  dyState <- accumDyn collectButtonPresses initialState buttons
+  let dyRes = zipDynWith (\a b->if a==b then "せいかい!" else T.empty) dyAns dyState 
+      dyRes2 = zipDynWith (\a b-> if a/=T.empty then b else T.empty) dyRes dyKoto
+  el "p" $ dynText dyState
+  el "p" $ dynText dyRes
+  divClass "kai" $ dynText dyRes2
   where
     initialState :: T.Text
     initialState = T.empty
@@ -162,50 +150,32 @@ buttonAction = do
         ButtonClear -> initialState
         ButtonNumber digit -> state <> digit
 
-mondai :: 
+elMondai :: 
   ( DomBuilder t m
   , Prerender t m
   , PostBuild t m
   ) => m (Dynamic t T.Text, Dynamic t T.Text) 
-mondai = do
-  monText <- prerender (return T.empty) $ liftIO $ reki 5
-  let mon = fmap makeMon monText
-      ans = fmap makeAns monText
-      koto = fmap makeKoto monText
-  divClass "kai" (dynText mon)
-  blank
-  return (ans,koto) 
+elMondai = do
+  dyMonText <- prerender (return ([],[])) $ liftIO $ reki 5
+  let dyMon = fmap makeMon dyMonText
+      dyAns = fmap makeAns dyMonText
+      dyKoto = fmap makeKoto dyMonText
+  divClass "kai" (dynText dyMon)
+  return (dyAns,dyKoto) 
 
-makeAns :: T.Text -> T.Text
-makeAns tx
-  | tx==T.empty = T.empty
-  | otherwise =
-      let (_,ans) = T.breakOn "=" tx 
-       in T.tail ans
+makeAns :: ([ERData],[Int]) -> T.Text
+makeAns (_,ils) = (T.pack . concatMap show) ils
 
-makeMon :: T.Text -> T.Text
-makeMon tx 
-  | tx==T.empty = T.empty
-  | otherwise = 
-      let (erdata,_) = T.breakOn "=" tx 
-       in  T.intercalate "\n" $
-              zipWith (curry 
-                (T.pack . (\(i,(_,d)) -> show i <> ": " <> T.unpack (T.tail d)))
-                      ) [1::Int,2..] (map (T.breakOn "-") (T.splitOn "," erdata))    
+makeMon :: ([ERData],[Int]) -> T.Text
+makeMon (edt,_) = T.intercalate "\n" $
+       zipWith (\i (_,d) -> (T.pack . show) i <> ": " <> d) [1::Int,2..] edt
 
-makeKoto :: T.Text -> T.Text
-makeKoto tx
-  | tx==T.empty = T.empty
-  | otherwise =
-      let (erdata,_) = T.breakOn "=" tx 
-       in  T.intercalate "\n" $
-              map (T.pack . (\(n,d) -> show n <> "年: " <> d)) $
-              sortNens $
-              map ((\(ns,dt) -> ((read . T.unpack) ns,T.unpack (T.tail dt))) . 
-                  T.breakOn "-") $
-              T.splitOn "," erdata    
+makeKoto :: ([ERData],[Int]) -> T.Text
+makeKoto (erd,_) = T.intercalate "\n" $
+              map (\(n,d) -> (T.pack . show) n <> "年: " <> d) $
+              sortNens erd 
 
-timer :: 
+elTimer :: 
   ( DomBuilder t m
   , MonadFix m
   , MonadHold t m
@@ -214,13 +184,13 @@ timer ::
   , PostBuild t m
   , TriggerEvent t m
   ) => m ()
-timer = do
+elTimer = do
   tev <- tickLossyFromPostBuildTime 1 
   let tm = T.pack . show . (+1) . _tickInfo_n <$> tev
   dynText =<< holdDyn "start" tm 
   pure ()
   
-charaAnime :: 
+elCharaAnime :: 
   ( DomBuilder t m
   , MonadFix m
   , MonadHold t m
@@ -229,36 +199,36 @@ charaAnime ::
   , PostBuild t m
   , TriggerEvent t m
   ) => m ()
-charaAnime = do
-  tev <- tickLossyFromPostBuildTime 1 
---  let tmi = (+1) . _tickInfo_n <$> tev
---  let tmText = T.pack . show <$> tmi
---  let tmChara = charaShow <$> tmi     
-  dToggle <- toggle True tev
+elCharaAnime = do
+  evTick <- tickLossyFromPostBuildTime 1 
+  dToggle <- toggle True evTick
   let 
     dNotToggle = not <$> dToggle
     mkHidden False = "hidden" =: ""
     mkHidden True = mempty
     dHide1 = mkHidden <$> dToggle
     dHide2 = mkHidden <$> dNotToggle
---  dyi <- holdDyn "start" tmText 
---  el "p" $ dynText dyi
   el "p" $ text ""
-  elDynAttr "div" dHide1 $ do chara0; timer
-  elDynAttr "div" dHide2 $ do chara1; timer
---  widgetHold_ (charaShow 0) tmChara 
+  elDynAttr "div" dHide1 $ do elChara0; elTimer
+  elDynAttr "div" dHide2 $ do elChara1; elTimer
   pure ()
   
-chara :: DomBuilder t m => m ()
-chara = elAttr "img" ("src" =: $(static "chara0_mid.png")) blank
+elChara :: DomBuilder t m => m ()
+elChara = elAttr "img" ("src" =: $(static "chara0_mid.png")) blank
 
-chara0 :: DomBuilder t m => m ()
-chara0 = elAttr "img" ("src" =: $(static "chara0.png")) blank
+elChara0 :: DomBuilder t m => m ()
+elChara0 = elAttr "img" ("src" =: $(static "chara0.png")) blank
 
-chara1 :: DomBuilder t m => m ()
-chara1 = elAttr "img" ("src" =: $(static "chara1.png")) blank
+elChara1 :: DomBuilder t m => m ()
+elChara1 = elAttr "img" ("src" =: $(static "chara1.png")) blank
 
-charaShow :: DomBuilder t m => Integer -> m ()
-charaShow i = do
+elCharaShow :: DomBuilder t m => Integer -> m ()
+elCharaShow i = do
   let remain = rem i 2 
-  case remain of 0 -> chara0; 1 -> chara1; _ -> chara0
+  case remain of 0 -> elChara0; 1 -> elChara1; _ -> elChara0
+
+route ::
+  ( DomBuilder t m
+  ) => R FrontendRoute -> m (Event t ())
+route (MkHome :/ ()) = pure never
+route (MkAbout :/ ()) = About.page >> pure never

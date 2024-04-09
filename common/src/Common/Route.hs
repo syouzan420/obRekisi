@@ -25,22 +25,25 @@ import Obelisk.Route.TH
 
 data BackendRoute :: * -> * where
   -- | Used to handle unparseable routes.
-  BackendRoute_Missing :: BackendRoute ()
+  MkMissing :: BackendRoute ()
   -- You can define any routes that will be handled specially by the backend here.
   -- i.e. These do not serve the frontend, but do something different, such as serving static files.
 
 data FrontendRoute :: * -> * where
-  FrontendRoute_Main :: FrontendRoute ()
+  MkHome :: FrontendRoute ()
+  MkAbout :: FrontendRoute ()
   -- This type is used to define frontend routes, i.e. ones for which the backend will serve the frontend.
 
 fullRouteEncoder
   :: Encoder (Either Text) Identity (R (FullRoute BackendRoute FrontendRoute)) PageName
 fullRouteEncoder = mkFullRouteEncoder
-  (FullRoute_Backend BackendRoute_Missing :/ ())
+  (FullRoute_Backend MkMissing :/ ())
   (\case
-      BackendRoute_Missing -> PathSegment "missing" $ unitEncoder mempty)
+      MkMissing -> PathSegment "missing" $ unitEncoder mempty)
   (\case
-      FrontendRoute_Main -> PathEnd $ unitEncoder mempty)
+      MkHome -> PathEnd $ unitEncoder mempty
+      MkAbout -> PathSegment "about" $ unitEncoder mempty
+  )
 
 concat <$> mapM deriveRouteComponent
   [ ''BackendRoute
