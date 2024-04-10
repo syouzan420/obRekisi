@@ -13,6 +13,7 @@
     # Uncomment and set this to `true` to indicate your acceptance:
     # terms.security.acme.acceptTerms = false;
   }
+, androidIsRelease ? false
 }:
 with obelisk;
 project ./. ({ pkgs, ... }: {
@@ -25,6 +26,7 @@ project ./. ({ pkgs, ... }: {
   android = {
     applicationId = "org.yokop.rekisi";
     displayName = "Rekisi";
+    isRelease = androidIsRelease;
     resources = reflex-platform.android.buildIcons {
       src = ./assets/chara.png;
     };

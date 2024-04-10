@@ -1,12 +1,14 @@
+cabal-version: 2.4 
 name: frontend
 version: 0.1
-cabal-version: >= 1.8
 build-type: Simple
 
 common defaults
   default-extensions:
     FlexibleContexts
     OverloadedStrings
+    TemplateHaskell
+    RankNTypes
 
 library
   import: defaults

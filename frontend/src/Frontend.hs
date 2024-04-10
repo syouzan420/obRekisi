@@ -1,9 +1,4 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RecursiveDo #-}
+--{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Frontend where
@@ -23,10 +18,8 @@ import qualified Data.Text as T
 import Obelisk.Frontend
 --import Obelisk.Configs
 import Obelisk.Route
--- import Obelisk.Route.Frontend
+--import Obelisk.Route.Frontend
 import Obelisk.Generated.Static (static)
-
-import qualified Page.About as About
 
 import EReki (ERData, reki, sortNens)
 
@@ -34,7 +27,7 @@ import Reflex.Dom.Core
   ( text, dynText, el, elAttr, divClass, elAttr', blank
   , (=:), leftmost, accumDyn, elDynAttr, prerender
   , widgetHold_, holdDyn, domEvent, toggle, zipDynWith
-  , tickLossyFromPostBuildTime, never
+  , tickLossyFromPostBuildTime
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
   , Performable, TickInfo(..)
@@ -86,8 +79,6 @@ frontendBody = do
   el "div" elChara
 
   el "p" $ text ""
-
---  el "div" $ routeLink (FrontendRoute_Main :/ () ) $ button "もんだい" 
 
   el "div" $ do
     tb <- (elButtonAction <$) <$> buttonClass "pad2" "もんだい" 
@@ -227,8 +218,3 @@ elCharaShow i = do
   let remain = rem i 2 
   case remain of 0 -> elChara0; 1 -> elChara1; _ -> elChara0
 
-route ::
-  ( DomBuilder t m
-  ) => R FrontendRoute -> m (Event t ())
-route (MkHome :/ ()) = pure never
-route (MkAbout :/ ()) = About.page >> pure never
