@@ -15,7 +15,9 @@ import Reflex.Dom.Core
   , PostBuild, MonadHold , Performable
   )
 
-import Widget (elButtonMondai, elChara)
+import Widget (elButtonMondai, elChara, elSpace)
+
+--import Canvas (elCanvas)
 
 data Button = ButtonNumber T.Text | ButtonClear 
 
@@ -58,13 +60,11 @@ frontendBody = do
 
   el "p" $ text $ T.pack commonStuff
 
-  el "p" $ text ""
-
-  el "div" elChara
-
-  el "p" $ text ""
-
-  el "div" elButtonMondai 
-
-  el "p" $ text ""
+  elSpace
+  elAttr "div" ("display" =: "flex") $ do
+    elChara
+--    elCanvas
+  elSpace
+  elButtonMondai 
+  elSpace
 

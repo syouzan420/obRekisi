@@ -1,4 +1,4 @@
-module Widget (elButtonMondai, elChara) where
+module Widget (elButtonMondai, elChara, elSpace) where
 
 import Control.Monad.IO.Class (liftIO,MonadIO)
 import Control.Monad.Fix (MonadFix)
@@ -6,12 +6,12 @@ import qualified Data.Text as T
 
 import Obelisk.Generated.Static (static)
 
-import EReki (ERData, reki, sortNens)
+import EReki (Rdt(..), reki, sortNens)
 
 import Reflex.Dom.Core 
   ( text, dynText, el, elAttr, divClass, elAttr', blank
   , (=:), leftmost, accumDyn, elDynAttr, prerender
-  , holdDyn, domEvent, toggle, zipDynWith
+  , holdDyn, domEvent, zipDynWith
   , tickLossyFromPostBuildTime, widgetHold_
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
@@ -19,6 +19,9 @@ import Reflex.Dom.Core
   )
 
 data Button = ButtonNumber T.Text | ButtonClear 
+
+elSpace :: DomBuilder t m => m ()
+elSpace = el "p" $ text ""
 
 elButtonMondai :: 
   ( DomBuilder t m
@@ -63,9 +66,11 @@ elButtonAction ::
   , TriggerEvent t m
   ) => m ()
 elButtonAction = do
-  el "div" elCharaAnime
+  elCharaAnime
   el "p" $ text ""
-  (dyAns,dyKoto) <- elMondai
+  (dyAns,dyRdt) <- elMondai
+  let dyMon = fmap makeMon dyRdt
+  divClass "kai" (dynText dyMon)
   el "p" $ text ""
   numberButton <- numberPad 5
   clearButton <- buttonClass "pad" "C"
@@ -73,6 +78,7 @@ elButtonAction = do
                          , ButtonNumber <$> numberButton
                          ]
   dyState <- accumDyn collectButtonPresses initialState buttons
+  let dyKoto = fmap makeKoto dyRdt
   let dyRes = zipDynWith (\a b->if a==b then "せいかい!" else T.empty) dyAns dyState 
       dyRes2 = zipDynWith (\a b-> if a/=T.empty then b else T.empty) dyRes dyKoto
   el "p" $ dynText dyState
@@ -91,27 +97,24 @@ elButtonAction = do
 elMondai :: 
   ( DomBuilder t m
   , Prerender t m
-  , PostBuild t m
-  ) => m (Dynamic t T.Text, Dynamic t T.Text) 
+  ) => m (Dynamic t T.Text, Dynamic t [Rdt]) 
 elMondai = do
-  dyMonText <- prerender (return ([],[])) $ liftIO $ reki 5
-  let dyMon = fmap makeMon dyMonText
-      dyAns = fmap makeAns dyMonText
-      dyKoto = fmap makeKoto dyMonText
-  divClass "kai" (dynText dyMon)
-  return (dyAns,dyKoto) 
+  dyRdtAns <- prerender (return ([],[])) $ liftIO $ reki 5
+  let dyRdt = fmap fst dyRdtAns
+      dyAns = fmap makeAns dyRdtAns
+  return (dyAns,dyRdt) 
 
-makeAns :: ([ERData],[Int]) -> T.Text
+makeAns :: ([Rdt],[Int]) -> T.Text
 makeAns (_,ils) = (T.pack . concatMap show) ils
 
-makeMon :: ([ERData],[Int]) -> T.Text
-makeMon (edt,_) = T.intercalate "\n" $
-       zipWith (\i (_,d) -> (T.pack . show) i <> ": " <> d) [1::Int,2..] edt
+makeMon :: [Rdt] -> T.Text
+makeMon rdt = T.intercalate "\n" $
+       zipWith (\i (Rdt _ k _ _) -> (T.pack . show) i <> ": " <> k) [1::Int,2..] rdt
 
-makeKoto :: ([ERData],[Int]) -> T.Text
-makeKoto (erd,_) = T.intercalate "\n" $
-              map (\(n,d) -> (T.pack . show) n <> "年: " <> d) $
-              sortNens erd 
+makeKoto :: [Rdt] -> T.Text
+makeKoto rdt = T.intercalate "\n" $
+              map (\(n,k) -> (T.pack . show) n <> "年: " <> k) $
+              sortNens $ map (\(Rdt n k _ _) -> (n,k)) rdt 
 
 elTimer :: 
   ( DomBuilder t m
@@ -121,12 +124,11 @@ elTimer ::
   , PerformEvent t m
   , PostBuild t m
   , TriggerEvent t m
-  ) => m ()
+  ) => m (Dynamic t T.Text)
 elTimer = do
-  tev <- tickLossyFromPostBuildTime 1 
-  let tm = T.pack . show . (+1) . _tickInfo_n <$> tev
-  dynText =<< holdDyn "start" tm 
-  pure ()
+  evTime <- tickLossyFromPostBuildTime 1 
+  let evTimeText = T.pack . show . (+1) . _tickInfo_n <$> evTime
+  holdDyn "start" evTimeText 
   
 elCharaAnime :: 
   ( DomBuilder t m
@@ -138,8 +140,9 @@ elCharaAnime ::
   , TriggerEvent t m
   ) => m ()
 elCharaAnime = do
-  evTick <- tickLossyFromPostBuildTime 1 
-  dToggle <- toggle True evTick
+  dyTime <- elTimer
+  let dToggle = fmap (\tx -> (tx/="start") &&
+                     (rem ((read . T.unpack) tx) 2==(0::Int))) dyTime
   let 
     dNotToggle = not <$> dToggle
     mkHidden False = "hidden" =: ""
@@ -147,8 +150,8 @@ elCharaAnime = do
     dHide1 = mkHidden <$> dToggle
     dHide2 = mkHidden <$> dNotToggle
   el "p" $ text ""
-  elDynAttr "div" dHide1 $ do elChara0; elTimer
-  elDynAttr "div" dHide2 $ do elChara1; elTimer
+  elDynAttr "div" dHide1 $ do elChara0; dynText dyTime 
+  elDynAttr "div" dHide2 $ do elChara1; dynText dyTime 
   pure ()
   
 elChara :: DomBuilder t m => m ()

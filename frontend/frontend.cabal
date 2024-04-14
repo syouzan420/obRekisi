@@ -17,6 +17,8 @@ library
   build-depends: base
                , common
                , jsaddle
+               , jsaddle-dom
+               , ghcjs-dom
                , lens
                , obelisk-executable-config-lookup
                , obelisk-frontend
@@ -27,11 +29,14 @@ library
                , random
                , time
                , semigroupoids
+               , bytestring
   exposed-modules:
     Frontend
   other-modules:
     EReki
     Widget
+    Canvas
+    File
   ghc-options: -Wall -O -fno-show-valid-hole-fits
                -- unsafe code
                -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields
