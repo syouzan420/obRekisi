@@ -11,7 +11,7 @@ import EReki (Rdt(..), reki, sortNens)
 import Reflex.Dom.Core 
   ( text, dynText, el, elAttr, divClass, elAttr', blank
   , (=:), leftmost, accumDyn, elDynAttr, prerender
-  , holdDyn, domEvent, zipDynWith
+  , holdDyn, domEvent, zipDynWith 
   , tickLossyFromPostBuildTime, widgetHold_
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
@@ -66,24 +66,27 @@ elButtonAction ::
   , TriggerEvent t m
   ) => m ()
 elButtonAction = do
-  elCharaAnime
-  el "p" $ text ""
-  (dyAns,dyRdt) <- elMondai
-  let dyMon = fmap makeMon dyRdt
-  divClass "kai" (dynText dyMon)
-  el "p" $ text ""
-  numberButton <- numberPad 5
-  clearButton <- buttonClass "pad" "C"
-  let buttons = leftmost [ ButtonClear <$ clearButton
-                         , ButtonNumber <$> numberButton
-                         ]
-  dyState <- accumDyn collectButtonPresses initialState buttons
-  let dyKoto = fmap makeKoto dyRdt
-  let dyRes = zipDynWith (\a b->if a==b then "せいかい!" else T.empty) dyAns dyState 
-      dyRes2 = zipDynWith (\a b-> if a/=T.empty then b else T.empty) dyRes dyKoto
-  el "p" $ dynText dyState
-  el "p" $ dynText dyRes
-  divClass "kai" $ dynText dyRes2
+  rec
+    (dyAns,dyRdt) <- elMondai
+    let dyMon = fmap makeMon dyRdt
+    elCharaAnime dyBool
+    el "p" $ text ""
+    divClass "kai" (dynText dyMon)
+    el "p" $ text ""
+    numberButton <- numberPad 5
+    clearButton <- buttonClass "pad" "C"
+    let buttons = leftmost [ ButtonClear <$ clearButton
+                           , ButtonNumber <$> numberButton
+                           ]
+    dyState <- accumDyn collectButtonPresses initialState buttons
+    let dyKoto = fmap makeKoto dyRdt
+    let dyRes = zipDynWith (\a b->if a==b then "せいかい!" else T.empty) dyAns dyState 
+        dyRes2 = zipDynWith (\a b-> if a/=T.empty then b else T.empty) dyRes dyKoto
+        dyBool = fmap (/=T.empty) dyRes
+    el "p" $ dynText dyState
+    el "p" $ dynText dyRes
+    divClass "kai" $ dynText dyRes2
+  return ()
   where
     initialState :: T.Text
     initialState = T.empty
@@ -138,9 +141,10 @@ elCharaAnime ::
   , PerformEvent t m
   , PostBuild t m
   , TriggerEvent t m
-  ) => m ()
-elCharaAnime = do
+  ) => Dynamic t Bool -> m ()
+elCharaAnime b = do
   dyTime <- elTimer
+  let dyTime' = zipDynWith (\bl ti -> if bl then "stop" else ti) b dyTime
   let dToggle = fmap (\tx -> (tx/="start") &&
                      (rem ((read . T.unpack) tx) 2==(0::Int))) dyTime
   let 
@@ -150,9 +154,10 @@ elCharaAnime = do
     dHide1 = mkHidden <$> dToggle
     dHide2 = mkHidden <$> dNotToggle
   el "p" $ text ""
-  elDynAttr "div" dHide1 $ do elChara0; dynText dyTime 
-  elDynAttr "div" dHide2 $ do elChara1; dynText dyTime 
+  elDynAttr "div" dHide1 $ do elChara0; dynText dyTime' 
+  elDynAttr "div" dHide2 $ do elChara1; dynText dyTime' 
   pure ()
+    
   
 elChara :: DomBuilder t m => m ()
 elChara = elAttr "img" ("src" =: $(static "chara0_mid.png")) blank

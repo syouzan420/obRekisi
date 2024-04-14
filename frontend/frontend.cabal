@@ -10,6 +10,7 @@ common defaults
     TemplateHaskell
     TypeFamilies
     RankNTypes
+    RecursiveDo
 
 library
   import: defaults
