@@ -10,9 +10,9 @@ import EReki (Rdt(..), reki, sortNens)
 
 import Reflex.Dom.Core 
   ( text, dynText, el, elAttr, divClass, elAttr', blank
-  , (=:), leftmost, accumDyn, elDynAttr, prerender
+  , (=:), leftmost, accumDyn, elDynAttr, prerender 
   , holdDyn, domEvent, zipDyn, zipDynWith, current, gate 
-  , tickLossyFromPostBuildTime, widgetHold_, sample
+  , tickLossyFromPostBuildTime, widgetHold_, toggle
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
   , Performable, TickInfo(..)
@@ -71,7 +71,7 @@ elButtonAction = do
     let dyMon = fmap makeMon dyRdt
     let dyHnt = fmap makeHnt dyRdt
     let dyZipMH = zipDyn dyMon dyHnt
-    dyTime <- elCharaAnime dyIsAnsNotCorrect
+    dyTime <- elCharaAnime (fmap not dyIsAnsCorrect)
     let dyIsTime60 = fmap (\ti -> (ti/="start") && (read . T.unpack) ti>(60::Int)) dyTime
     let dyMH = zipDynWith (\bl (m,h)-> if bl then h else m) dyIsTime60 dyZipMH 
     el "p" $ text ""
@@ -83,10 +83,11 @@ elButtonAction = do
                            , ButtonNumber <$> numberButton
                            ]
     dyState <- accumDyn collectButtonPresses initialState buttons
-    let dyKoto = fmap makeKoto dyRdt
-        dyRes = zipDynWith (\a b->if a==b then "せいかい!" else T.empty) dyAns dyState 
-        dyRes2 = zipDynWith (\a b-> if a/=T.empty then b else T.empty) dyRes dyKoto
-        dyIsAnsNotCorrect = fmap (==T.empty) dyRes
+--    let dyKoto = fmap makeKoto dyRdt
+    let dyCont = fmap makeCont dyRdt
+    let dyIsAnsCorrect = zipDynWith (==) dyAns dyState
+    let dyRes = zipDynWith (\a b->if a==b then "せいかい!" else T.empty) dyAns dyState 
+        dyRes2 = zipDynWith (\a b-> if a/=T.empty then b else T.empty) dyRes dyCont
     el "p" $ dynText dyState
     el "p" $ dynText dyRes
     divClass "kai" $ dynText dyRes2
@@ -100,6 +101,20 @@ elButtonAction = do
       case buttonPress of
         ButtonClear -> initialState
         ButtonNumber digit -> state <> digit
+
+elKai ::
+  ( DomBuilder t m
+  , MonadFix m
+  , MonadHold t m
+  , PostBuild t m
+  ) => Dynamic t T.Text -> Dynamic t T.Text -> m ()
+elKai dyKoto dyCont = do
+  el "div" $ text "せいかい!"
+  evMore <- buttonClass "text" "more"
+  dyToggle <- toggle True evMore 
+  let dyZipKC = zipDyn dyKoto dyCont
+  let dyKC = zipDynWith (\bl (k,c) -> if bl then k else c) dyToggle dyZipKC
+  divClass "kai" $ dynText dyKC 
 
 elMondai :: 
   ( DomBuilder t m
@@ -127,6 +142,11 @@ makeKoto :: [Rdt] -> T.Text
 makeKoto rdt = T.intercalate "\n" $
               map (\(n,k) -> (T.pack . show) n <> "年: " <> k) $
               sortNens $ map (\(Rdt n k _ _) -> (n,k)) rdt 
+
+makeCont :: [Rdt] -> T.Text
+makeCont rdt =  T.intercalate "\n" $
+           map (\(n,(k,c)) -> (T.pack . show) n <> "年: " <> k <> "\n    " <> c) $
+           sortNens $ map (\(Rdt n k _ c) -> (n,(k,c))) rdt 
 
 {-
 makeKai :: 
