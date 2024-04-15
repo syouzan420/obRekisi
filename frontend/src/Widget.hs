@@ -11,7 +11,7 @@ import EReki (Rdt(..), reki, sortNens)
 import Reflex.Dom.Core 
   ( text, dynText, el, elAttr, divClass, elAttr', blank
   , (=:), leftmost, accumDyn, elDynAttr, prerender
-  , holdDyn, domEvent, zipDynWith 
+  , holdDyn, domEvent, zipDyn, zipDynWith, current, gate 
   , tickLossyFromPostBuildTime, widgetHold_
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
@@ -69,9 +69,13 @@ elButtonAction = do
   rec
     (dyAns,dyRdt) <- elMondai
     let dyMon = fmap makeMon dyRdt
-    elCharaAnime dyBool
+    let dyHnt = fmap makeHnt dyRdt
+    let dyZipMH = zipDyn dyMon dyHnt
+    dyTime <- elCharaAnime dyIsAnsNotCorrect
+    let dyIsTime60 = fmap (\ti -> (ti/="start") && (read . T.unpack) ti>(60::Int)) dyTime
+    let dyMH = zipDynWith (\bl (m,h)-> if bl then h else m) dyIsTime60 dyZipMH 
     el "p" $ text ""
-    divClass "kai" (dynText dyMon)
+    divClass "kai" (dynText dyMH)
     el "p" $ text ""
     numberButton <- numberPad 5
     clearButton <- buttonClass "pad" "C"
@@ -80,13 +84,13 @@ elButtonAction = do
                            ]
     dyState <- accumDyn collectButtonPresses initialState buttons
     let dyKoto = fmap makeKoto dyRdt
-    let dyRes = zipDynWith (\a b->if a==b then "せいかい!" else T.empty) dyAns dyState 
+        dyRes = zipDynWith (\a b->if a==b then "せいかい!" else T.empty) dyAns dyState 
         dyRes2 = zipDynWith (\a b-> if a/=T.empty then b else T.empty) dyRes dyKoto
-        dyBool = fmap (/=T.empty) dyRes
+        dyIsAnsNotCorrect = fmap (==T.empty) dyRes
     el "p" $ dynText dyState
     el "p" $ dynText dyRes
     divClass "kai" $ dynText dyRes2
-  return ()
+  pure ()
   where
     initialState :: T.Text
     initialState = T.empty
@@ -114,6 +118,11 @@ makeMon :: [Rdt] -> T.Text
 makeMon rdt = T.intercalate "\n" $
        zipWith (\i (Rdt _ k _ _) -> (T.pack . show) i <> ": " <> k) [1::Int,2..] rdt
 
+makeHnt :: [Rdt] -> T.Text
+makeHnt rdt = T.intercalate "\n" $
+       zipWith (\i (Rdt _ k h _) -> (T.pack . show) i <> ": " <> k <> "\n  ----" <> h)
+                                                                    [1::Int,2..] rdt
+
 makeKoto :: [Rdt] -> T.Text
 makeKoto rdt = T.intercalate "\n" $
               map (\(n,k) -> (T.pack . show) n <> "年: " <> k) $
@@ -127,10 +136,12 @@ elTimer ::
   , PerformEvent t m
   , PostBuild t m
   , TriggerEvent t m
-  ) => m (Dynamic t T.Text)
-elTimer = do
+  ) => Dynamic t Bool -> m (Dynamic t T.Text)
+elTimer isAnsNotCorrect = do
   evTime <- tickLossyFromPostBuildTime 1 
-  let evTimeText = T.pack . show . (+1) . _tickInfo_n <$> evTime
+  let beBool = current isAnsNotCorrect 
+  let evNTime = gate beBool evTime
+  let evTimeText = T.pack . show . (+1) . _tickInfo_n <$> evNTime
   holdDyn "start" evTimeText 
   
 elCharaAnime :: 
@@ -141,10 +152,9 @@ elCharaAnime ::
   , PerformEvent t m
   , PostBuild t m
   , TriggerEvent t m
-  ) => Dynamic t Bool -> m ()
-elCharaAnime b = do
-  dyTime <- elTimer
-  let dyTime' = zipDynWith (\bl ti -> if bl then "stop" else ti) b dyTime
+  ) => Dynamic t Bool -> m (Dynamic t T.Text)
+elCharaAnime isAnsNotCorrect = do
+  dyTime <- elTimer isAnsNotCorrect 
   let dToggle = fmap (\tx -> (tx/="start") &&
                      (rem ((read . T.unpack) tx) 2==(0::Int))) dyTime
   let 
@@ -154,9 +164,9 @@ elCharaAnime b = do
     dHide1 = mkHidden <$> dToggle
     dHide2 = mkHidden <$> dNotToggle
   el "p" $ text ""
-  elDynAttr "div" dHide1 $ do elChara0; dynText dyTime' 
-  elDynAttr "div" dHide2 $ do elChara1; dynText dyTime' 
-  pure ()
+  elDynAttr "div" dHide1 $ do elChara0; dynText dyTime 
+  elDynAttr "div" dHide2 $ do elChara1; dynText dyTime 
+  pure dyTime 
     
   
 elChara :: DomBuilder t m => m ()
