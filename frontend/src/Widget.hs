@@ -12,7 +12,7 @@ import Reflex.Dom.Core
   ( text, dynText, el, elAttr, divClass, elAttr', blank
   , (=:), leftmost, accumDyn, elDynAttr, prerender
   , holdDyn, domEvent, zipDyn, zipDynWith, current, gate 
-  , tickLossyFromPostBuildTime, widgetHold_
+  , tickLossyFromPostBuildTime, widgetHold_, sample
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
   , Performable, TickInfo(..)
@@ -127,6 +127,22 @@ makeKoto :: [Rdt] -> T.Text
 makeKoto rdt = T.intercalate "\n" $
               map (\(n,k) -> (T.pack . show) n <> "年: " <> k) $
               sortNens $ map (\(Rdt n k _ _) -> (n,k)) rdt 
+
+{-
+makeKai :: 
+  ( DomBuilder t m
+  , MonadHold t m
+  , PostBuild t m
+  )  => Dynamic t Rdt -> m ()
+makeKai dyRdt = do
+  el "p" $ do 
+    dynText $ fmap (\(Rdt n k _ _) -> (T.pack . show) n <> ": " <> k) dyRdt
+    let dyC = fmap (\(Rdt _ _ _ c) -> c) dyRdt
+    cs <- (sample . current) dyC
+    evCon <- (cs <$) <$> buttonClass "text" "more"
+    dynText =<< holdDyn T.empty evCon
+    blank
+-}
 
 elTimer :: 
   ( DomBuilder t m
