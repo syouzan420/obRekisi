@@ -4,7 +4,8 @@ module EReki (Rdt(..), reki, sortNens) where
 import System.Random (randomRIO)
 import qualified Data.Text as T
 
-import File (fileRead)
+--import File (fileRead)
+import Reki (rekiDoc)
 
 type Nen = Int
 type Koto = T.Text
@@ -39,11 +40,11 @@ selectData i rdt = do
   return (dt:sdts)
 
 rekiFile :: FilePath
-rekiFile = "frontend/ref/reki.txt"
+rekiFile = "frontend/src/reki.txt"
 
 reki :: Int -> IO ([Rdt],[Int]) 
 reki i = do
-  txs <- T.lines <$> fileRead rekiFile 
+  let txs = T.lines rekiDoc 
   let rdts = map makeRData txs
   mondai <- selectData i rdts 
   let jun = makeJun mondai
