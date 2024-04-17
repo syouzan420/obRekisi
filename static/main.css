@@ -3,7 +3,8 @@ p {
 }
 
 .kai {
-  white-space: pre;
+  width: auto;
+  white-space: pre-wrap;
 }
 
 .pad {
