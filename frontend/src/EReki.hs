@@ -39,9 +39,6 @@ selectData i rdt = do
   sdts <- selectData (i-1) dts
   return (dt:sdts)
 
-rekiFile :: FilePath
-rekiFile = "frontend/src/reki.txt"
-
 reki :: Int -> IO ([Rdt],[Int]) 
 reki i = do
   let txs = T.lines rekiDoc 

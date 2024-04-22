@@ -78,12 +78,12 @@ elButtonAction = do
     divClass "kai" (dynText dyMH)
     el "p" $ text ""
     numberButton <- numberPad 5
-    clearButton <- buttonClass "pad" "C"
+    clearButton <- buttonClass "pad" "B"
     let buttons = leftmost [ ButtonClear <$ clearButton
                            , ButtonNumber <$> numberButton
                            ]
     dyState <- accumDyn collectButtonPresses initialState buttons
---    let dyKoto = fmap makeKoto dyRdt
+--  let dyKoto = fmap makeKoto dyRdt
     let dyCont = fmap makeCont dyRdt
     let dyIsAnsCorrect = zipDynWith (==) dyAns dyState
     let dyRes = zipDynWith (\a b->if a==b then "せいかい!" else T.empty) dyAns dyState 
@@ -99,7 +99,7 @@ elButtonAction = do
     collectButtonPresses :: T.Text -> Button -> T.Text
     collectButtonPresses state buttonPress =
       case buttonPress of
-        ButtonClear -> initialState
+        ButtonClear -> if state==T.empty then T.empty else T.init state 
         ButtonNumber digit -> state <> digit
 
 elKai ::
