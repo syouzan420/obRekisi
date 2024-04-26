@@ -11,14 +11,18 @@ import EReki (Rdt(..), reki, sortNens)
 import Reflex.Dom.Core 
   ( text, dynText, el, elAttr, divClass, elAttr', blank
   , (=:), leftmost, accumDyn, elDynAttr, prerender 
-  , holdDyn, domEvent, zipDyn, zipDynWith, current, gate 
-  , tickLossyFromPostBuildTime, widgetHold_, toggle
+  , holdDyn, domEvent, zipDyn, zipDynWith, current, gate
+  , tickLossyFromPostBuildTime, widgetHold_
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
   , Performable, TickInfo(..)
   )
 
 data Button = ButtonNumber T.Text | ButtonClear 
+
+qNum :: Int
+qNum = 5
+
 
 elSpace :: DomBuilder t m => m ()
 elSpace = el "p" $ text ""
@@ -46,14 +50,11 @@ buttonClass c s = do
 
 numberPad :: DomBuilder t m => Int -> m (Event t T.Text)
 numberPad i = do
-  b1 <- ("1" <$) <$> numberButton "1"
-  b2 <- ("2" <$) <$> numberButton "2"
-  b3 <- ("3" <$) <$> numberButton "3"
-  b4 <- ("4" <$) <$> numberButton "4"
-  b5 <- ("5" <$) <$> numberButton "5"
-  return $ leftmost (take i [b1,b2,b3,b4,b5])
+  evts <- mapM (\n -> (toText n <$) <$> numberButton (toText n)) [1..i] 
+  return $ leftmost evts
   where
     numberButton = buttonClass "pad" 
+    toText = T.pack . show
 
 elButtonAction :: 
   ( DomBuilder t m
@@ -77,7 +78,7 @@ elButtonAction = do
     el "p" $ text ""
     divClass "kai" (dynText dyMH)
     el "p" $ text ""
-    numberButton <- numberPad 5
+    numberButton <- numberPad qNum 
     clearButton <- buttonClass "pad" "B"
     let buttons = leftmost [ ButtonClear <$ clearButton
                            , ButtonNumber <$> numberButton
@@ -91,6 +92,7 @@ elButtonAction = do
     el "p" $ dynText dyState
     el "p" $ dynText dyRes
     divClass "kai" $ dynText dyRes2
+--    mapM_ (\n -> makeKai (fmap (\rdts -> if null rdts then Rdt 0 T.empty T.empty T.empty else rdts!!n) dyRdt)) [0..(qNum-1)]
   pure ()
   where
     initialState :: T.Text
@@ -102,6 +104,7 @@ elButtonAction = do
         ButtonClear -> if state==T.empty then T.empty else T.init state 
         ButtonNumber digit -> state <> digit
 
+{-
 elKai ::
   ( DomBuilder t m
   , MonadFix m
@@ -115,13 +118,14 @@ elKai dyKoto dyCont = do
   let dyZipKC = zipDyn dyKoto dyCont
   let dyKC = zipDynWith (\bl (k,c) -> if bl then k else c) dyToggle dyZipKC
   divClass "kai" $ dynText dyKC 
+-}
 
 elMondai :: 
   ( DomBuilder t m
   , Prerender t m
   ) => m (Dynamic t T.Text, Dynamic t [Rdt]) 
 elMondai = do
-  dyRdtAns <- prerender (return ([],[])) $ liftIO $ reki 5
+  dyRdtAns <- prerender (return ([],[])) $ liftIO $ reki qNum 
   let dyRdt = fmap fst dyRdtAns
       dyAns = fmap makeAns dyRdtAns
   return (dyAns,dyRdt) 
@@ -158,9 +162,12 @@ makeKai dyRdt = do
   el "p" $ do 
     dynText $ fmap (\(Rdt n k _ _) -> (T.pack . show) n <> ": " <> k) dyRdt
     let dyC = fmap (\(Rdt _ _ _ c) -> c) dyRdt
-    cs <- (sample . current) dyC
-    evCon <- (cs <$) <$> buttonClass "text" "more"
-    dynText =<< holdDyn T.empty evCon
+    let evEmpty = updated (constDyn T.empty)
+    let cs = updated dyC
+    evFst <- buttonClass "text" "more"
+    let evCon = cs <$ evFst 
+    evCon' <- switchHold evEmpty evCon 
+    dynText =<< holdDyn T.empty evCon'
     blank
 -}
 
