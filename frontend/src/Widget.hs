@@ -13,6 +13,7 @@ import Reflex.Dom.Core
   , (=:), leftmost, accumDyn, elDynAttr, prerender 
   , holdDyn, domEvent, zipDyn, zipDynWith, current, gate
   , tickLossyFromPostBuildTime, widgetHold_
+--  , tag
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
   , Performable, TickInfo(..)
@@ -141,35 +142,36 @@ makeHnt :: [Rdt] -> T.Text
 makeHnt rdt = T.intercalate "\n" $
        zipWith (\i (Rdt _ k h _) -> (T.pack . show) i <> ": " <> k <> "\n  ----" <> h)
                                                                     [1::Int,2..] rdt
-
+{--
 makeKoto :: [Rdt] -> T.Text
 makeKoto rdt = T.intercalate "\n" $
               map (\(n,k) -> (T.pack . show) n <> "年: " <> k) $
               sortNens $ map (\(Rdt n k _ _) -> (n,k)) rdt 
+--}
 
 makeCont :: [Rdt] -> T.Text
 makeCont rdt =  T.intercalate "\n" $
            map (\(n,(k,c)) -> (T.pack . show) n <> "年: " <> k <> "\n    " <> c) $
            sortNens $ map (\(Rdt n k _ c) -> (n,(k,c))) rdt 
 
-{-
+{--
 makeKai :: 
   ( DomBuilder t m
   , MonadHold t m
   , PostBuild t m
   )  => Dynamic t Rdt -> m ()
 makeKai dyRdt = do
-  el "p" $ do 
-    dynText $ fmap (\(Rdt n k _ _) -> (T.pack . show) n <> ": " <> k) dyRdt
-    let dyC = fmap (\(Rdt _ _ _ c) -> c) dyRdt
-    let evEmpty = updated (constDyn T.empty)
-    let cs = updated dyC
-    evFst <- buttonClass "text" "more"
-    let evCon = cs <$ evFst 
-    evCon' <- switchHold evEmpty evCon 
-    dynText =<< holdDyn T.empty evCon'
+  divClass "kai" $ do 
+    dynText $ fmap (\(Rdt n k _ _) -> (T.pack . show) n <> "年: " <> k) dyRdt
+    text "  "
+    let dyC = fmap (\(Rdt _ _ _ c) -> "\n"<>c) dyRdt
+    let beC = current dyC
+    evB <- buttonClass "text" "more"
+    let evC = tag beC evB
+    dynText =<< holdDyn T.empty evC 
     blank
--}
+--}
+
 
 elTimer :: 
   ( DomBuilder t m
