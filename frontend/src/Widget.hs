@@ -10,8 +10,8 @@ import EReki (Rdt(..), reki, sortNens)
 
 import Reflex.Dom.Core 
   ( text, dynText, el, elAttr, divClass, elAttr', blank
-  , (=:), leftmost, accumDyn, elDynAttr, prerender 
-  , holdDyn, domEvent, zipDynWith, current, gate
+  , (=:), leftmost, accumDyn, elDynAttr, elDynAttr', prerender 
+  , holdDyn, domEvent, zipDynWith, current, gate, toggle
   , tickLossyFromPostBuildTime, widgetHold_
   , tag
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
@@ -39,21 +39,33 @@ elButtonMondai ::
   , TriggerEvent t m
   ) => m ()
 elButtonMondai = do
-  tb <- (elButtonAction <$) <$> buttonClass "pad2" "もんだい" 
+  tb <- (elButtonAction <$) <$> evButton "pad2" "もんだい" 
   el "p" $ text ""
   widgetHold_ elButtonAction tb 
 
-buttonClass :: DomBuilder t m => T.Text -> T.Text -> m (Event t ())
-buttonClass c s = do
+evButton :: DomBuilder t m => T.Text -> T.Text -> m (Event t ())
+evButton c s = do
   (e, _) <- elAttr' "button" ("type" =: "button" <> "class" =: c) $ text s
   return $ domEvent Click e
+
+evButtonH :: 
+  ( DomBuilder t m
+  , PostBuild t m
+  ) => Dynamic t Bool -> T.Text -> T.Text -> m (Event t ())
+evButtonH dyB c s = do
+  (e, _) <- elDynAttr' "button" dyBHide $ text s 
+  return $ domEvent Click e
+  where mkHidden False = "hidden" =: "" <> otherAttr 
+        mkHidden True = otherAttr 
+        dyBHide = mkHidden <$> dyB
+        otherAttr = "type" =: "button" <> "class" =: c
 
 numberPad :: DomBuilder t m => Int -> m (Event t T.Text)
 numberPad i = do
   evts <- mapM (\n -> (toText n <$) <$> numberButton (toText n)) [1..i] 
   return $ leftmost evts
   where
-    numberButton = buttonClass "pad" 
+    numberButton = evButton "pad" 
     toText = T.pack . show
 
 elButtonAction :: 
@@ -75,7 +87,7 @@ elButtonAction = do
     mapM_ (\n -> makeHMon dyIsTime60 (n+1) (fmap (\rdts -> if null rdts then Rdt 0 T.empty T.empty T.empty else rdts!!n) dyRdt)) [0..(qNum-1)]
     elSpace
     numberButton <- numberPad qNum 
-    clearButton <- buttonClass "pad" "B"
+    clearButton <- evButton "pad" "B"
     let buttons = leftmost [ ButtonClear <$ clearButton
                            , ButtonNumber <$> numberButton
                            ]
@@ -97,6 +109,7 @@ elButtonAction = do
 elKai ::
   ( DomBuilder t m
   , MonadHold t m
+  , MonadFix m
   , PostBuild t m
   ) => Dynamic t Bool -> Dynamic t [Rdt] -> m ()
 elKai dyIsAnsCorrect dyRdt = do
@@ -129,6 +142,7 @@ makeSort rdt = map (\(n,(k,h,c)) -> Rdt n k h c) $
 makeHMon :: 
   ( DomBuilder t m
   , MonadHold t m
+  , MonadFix m
   , PostBuild t m
   )  => Dynamic t Bool -> Int -> Dynamic t Rdt -> m ()
 makeHMon dyIsTime60 i dyRdt = do
@@ -138,30 +152,37 @@ makeHMon dyIsTime60 i dyRdt = do
                       (T.pack . show) i <> ": " <> k) dyRdt 
     dynText dyMon
     elDynAttr "div" dHide $ do 
-      let dyH = fmap (\(Rdt _ _ h _) -> "-----"<>h) dyRdt
-      let beH = current dyH
-      evB <- buttonClass "text" "hint"
-      let evH = tag beH evB
-      dynText =<< holdDyn T.empty evH 
-      blank
+      rec
+        let dyH = fmap (\(Rdt _ _ h _) -> "-----"<>h) dyRdt
+        let beH = current dyH
+        evB <- evButtonH dyToggle "text" "hint"
+        dyToggle <- toggle True evB
+        let evH = tag beH evB
+        dynText =<< holdDyn T.empty evH 
+        blank
+      pure ()
   where mkHidden False = "hidden" =: "" 
         mkHidden True = mempty 
 
 makeKai :: 
   ( DomBuilder t m
   , MonadHold t m
+  , MonadFix m
   , PostBuild t m
   )  => Dynamic t Rdt -> m ()
 makeKai dyRdt = do
   divClass "kai" $ do 
-    dynText $ fmap (\(Rdt n k _ _) -> (T.pack . show) n <> "年: " <> k) dyRdt
-    text "  "
-    let dyC = fmap (\(Rdt _ _ _ c) -> "\n-----"<>c<>"\n ") dyRdt
-    let beC = current dyC
-    evB <- buttonClass "text" "more"
-    let evC = tag beC evB
-    dynText =<< holdDyn T.empty evC 
-    blank
+    rec
+      dynText $ fmap (\(Rdt n k _ _) -> (T.pack . show) n <> "年: " <> k) dyRdt
+      text "  "
+      let dyC = fmap (\(Rdt _ _ _ c) -> "\n-----"<>c<>"\n ") dyRdt
+      let beC = current dyC
+      evB <- evButtonH dyToggle "text" "more"
+      dyToggle <- toggle True evB
+      let evC = tag beC evB
+      dynText =<< holdDyn T.empty evC 
+      blank
+    pure ()
 
 elTimer :: 
   ( DomBuilder t m
