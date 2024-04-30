@@ -11,7 +11,7 @@ type Nen = Int
 type Koto = T.Text
 type Hint = T.Text
 type Content = T.Text
-data Rdt = Rdt Nen Koto Hint Content 
+data Rdt = Rdt Nen Koto Hint Content
 
 sortNens :: [(Int,a)] -> [(Int,a)]
 sortNens [] = []
