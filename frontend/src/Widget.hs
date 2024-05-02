@@ -3,7 +3,8 @@ module Widget (elButtonMondai, elChara, elSpace) where
 import Control.Monad.IO.Class (liftIO,MonadIO)
 import Control.Monad.Fix (MonadFix)
 import qualified Data.Text as T
-import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
+import Data.Maybe (fromJust)
 
 import Obelisk.Generated.Static (static)
 
@@ -14,7 +15,7 @@ import Reflex.Dom.Core
   , (=:), leftmost, accumDyn, elDynAttr, elDynAttr', prerender 
   , holdDyn, domEvent, zipDynWith, current, gate, toggle
   , tickLossyFromPostBuildTime, widgetHold_
-  , tag
+  , tag, constDyn, def, dropdown, value, sample
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
   , Performable, TickInfo(..)
@@ -25,7 +26,7 @@ data Button = ButtonNumber T.Text | ButtonBack
 qNum :: Int
 qNum = 5
 
-mkHidden :: Bool -> Map T.Text T.Text
+mkHidden :: Bool -> Map.Map T.Text T.Text
 mkHidden False = "hidden" =: "" 
 mkHidden True = mempty
 
@@ -51,6 +52,10 @@ elSpace = el "p" $ text ""
 elChara :: DomBuilder t m => m ()
 elChara = elAttr "img" ("src" =: $(static "chara0_mid.png")) blank
 
+monNums :: Map.Map Int T.Text
+monNums = Map.fromList [(2,"2"),(3,"3"),(4,"4"),(5,"5"),(6,"6")
+                       ,(7,"7"),(8,"8"),(9,"9"),(10,"10")]
+
 elButtonMondai :: 
   ( DomBuilder t m
   , MonadFix m
@@ -62,11 +67,37 @@ elButtonMondai ::
   , TriggerEvent t m
   ) => m ()
 elButtonMondai = do
-  tb <- (elButtonAction <$) <$> evElButton "pad2" "もんだい" 
-  el "p" $ text ""
-  widgetHold_ elButtonAction tb 
+  rec
+    tb <- (elMondaiAction dyMonNum <$) <$> evElButton "pad2" "もんだい" 
+    dyMonNum <- numSelector
+    elSpace 
+    widgetHold_ (elMondaiAction dyMonNum) tb 
+  pure ()
 
-elButtonAction :: 
+numSelector :: 
+  ( DomBuilder t m
+  , MonadFix m
+  , MonadHold t m
+  , PostBuild t m
+  ) => m (Dynamic t Int) 
+numSelector = do
+    text ":--:"
+    drMonNum <- dropdown qNum (constDyn monNums) def
+    let dyMonNum = (\i -> read $ T.unpack $ fromJust (Map.lookup i monNums)) 
+                                                              <$> value drMonNum
+    return dyMonNum
+
+elEvAllButtons :: DomBuilder t m  => Int -> m (Event t Button)
+elEvAllButtons qn = do
+  divClass "gr" $ do
+    evNumberButtons <- evElNumberPad qn 
+    evBackButton <- evElButton "pad" "B"
+    let evButtons = leftmost [ ButtonBack <$ evBackButton
+                             , ButtonNumber <$> evNumberButtons
+                             ]
+    return evButtons
+
+elMondaiAction :: 
   ( DomBuilder t m
   , MonadFix m
   , MonadHold t m
@@ -75,25 +106,23 @@ elButtonAction ::
   , PostBuild t m
   , Prerender t m
   , TriggerEvent t m
-  ) => m ()
-elButtonAction = do
+  ) => Dynamic t Int -> m ()
+elMondaiAction dyMNum = do
   rec
-    (dyAns,dyRdt) <- elMondai
+    let beMNum = current dyMNum
+    qn <- sample beMNum
+    (dyAns,dyRdt) <- elMondai qn 
     dyTime <- elCharaAnime (fmap not dyIsAnsCorrect)
     let dyIsTime60 = 
           fmap (\ti -> (ti/="start") && (read . T.unpack) ti>(60::Int)) dyTime
     elSpace
-    mapM_ (\n -> elOneMon dyIsTime60 (n+1) (fmap (getRdt n) dyRdt)) [0..(qNum-1)]
+    mapM_ (\n -> elOneMon dyIsTime60 (n+1) (fmap (getRdt n) dyRdt)) [0..(qn-1)]
     elSpace
-    evNumberButtons <- evElNumberPad qNum 
-    evBackButton <- evElButton "pad" "B"
-    let evButtons = leftmost [ ButtonBack <$ evBackButton
-                           , ButtonNumber <$> evNumberButtons
-                           ]
+    evButtons <- elEvAllButtons qn 
     dyState <- accumDyn collectButtonPresses initialState evButtons
     let dyIsAnsCorrect = zipDynWith (==) dyAns dyState
     el "p" $ dynText dyState
-    elKai dyIsAnsCorrect dyRdt
+    elKai qn dyIsAnsCorrect dyRdt
   pure ()
   where
     initialState :: T.Text
@@ -124,8 +153,9 @@ evElButtonH dyB c s = do
 
 evElNumberPad :: DomBuilder t m => Int -> m (Event t T.Text)
 evElNumberPad i = do
-  evts <- mapM (\n -> (toText n <$) <$> evElNumberButton (toText n)) [1..i] 
-  return $ leftmost evts
+  divClass "gr" $ do
+    evts <- mapM (\n -> (toText n <$) <$> evElNumberButton (toText n)) [1..i] 
+    return $ leftmost evts
   where
     evElNumberButton = evElButton "pad" 
     toText = T.pack . show
@@ -158,14 +188,14 @@ elKai ::
   , MonadHold t m
   , MonadFix m
   , PostBuild t m
-  ) => Dynamic t Bool -> Dynamic t [Rdt] -> m ()
-elKai dyIsAnsCorrect dyRdt = do
+  ) => Int -> Dynamic t Bool -> Dynamic t [Rdt] -> m ()
+elKai qn dyIsAnsCorrect dyRdt = do
   let dHide = mkHidden <$> dyIsAnsCorrect
   let dySRdt = fmap makeSort dyRdt
   elDynAttr "div" dHide $ do 
     el "p" $ text "せいかい!"
     elSpace
-    mapM_ (\n -> elOneKai (fmap (getRdt n) dySRdt)) [0..(qNum-1)]
+    mapM_ (\n -> elOneKai (fmap (getRdt n) dySRdt)) [0..(qn-1)]
 
 elOneKai :: 
   ( DomBuilder t m
@@ -190,9 +220,9 @@ elOneKai dyRdt = do
 elMondai :: 
   ( DomBuilder t m
   , Prerender t m
-  ) => m (Dynamic t T.Text, Dynamic t [Rdt]) 
-elMondai = do
-  dyRdtAns <- prerender (return ([],[])) $ liftIO $ reki qNum 
+  ) => Int -> m (Dynamic t T.Text, Dynamic t [Rdt]) 
+elMondai qn = do
+  dyRdtAns <- prerender (return ([],[])) $ liftIO $ reki qn 
   let dyRdt = fmap fst dyRdtAns
       dyAns = fmap makeAns dyRdtAns
   return (dyAns,dyRdt) 
