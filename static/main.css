@@ -16,6 +16,11 @@ p {
   padding: 1px 17px 2px;
   font: 400 20px system-ui;
 }
+.pad3 {
+  background: yellow;
+  padding: 1px 17px 2px;
+  font: 400 15px system-ui;
+}
 .inputs {
   display: inline;
   padding: 5px;

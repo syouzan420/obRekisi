@@ -1,5 +1,7 @@
 module Widget (elButtonMondai, elChara, elSpace) where
 
+import qualified JSDOM as DOM
+import qualified JSDOM.Custom.Window as DOM
 import Control.Monad.IO.Class (liftIO,MonadIO)
 import Control.Monad.Fix (MonadFix)
 import qualified Data.Text as T
@@ -11,10 +13,10 @@ import Obelisk.Generated.Static (static)
 import EReki (Rdt(..), reki, sortNens)
 
 import Reflex.Dom.Core 
-  ( text, dynText, el, elAttr, divClass, elAttr', blank
+  ( text, dynText, el, elAttr, divClass, elAttr', blank, prerender_
   , (=:), leftmost, accumDyn, elDynAttr, elDynAttr', prerender 
   , holdDyn, domEvent, zipDynWith, current, gate, toggle
-  , tickLossyFromPostBuildTime, widgetHold_
+  , tickLossyFromPostBuildTime, widgetHold_ 
   , tag, constDyn, def, dropdown, value, sample
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, Event, EventName(Click), MonadHold ,Dynamic
@@ -87,7 +89,7 @@ numSelector = do
                                                               <$> value drMonNum
     return dyMonNum
 
-elEvAllButtons :: DomBuilder t m  => Int -> m (Event t Button)
+elEvAllButtons :: (DomBuilder t m)  => Int -> m (Event t Button)
 elEvAllButtons qn = do
   divClass "gr" $ do
     evNumberButtons <- evElNumberPad qn 
@@ -134,10 +136,11 @@ elMondaiAction dyMNum = do
         ButtonBack -> if state==T.empty then T.empty else T.init state 
         ButtonNumber digit -> state <> digit
 
-evElButton :: DomBuilder t m => T.Text -> T.Text -> m (Event t ())
+evElButton :: (DomBuilder t m) => T.Text -> T.Text -> m (Event t ())
 evElButton c s = do
   (e, _) <- elAttr' "button" ("type" =: "button" <> "class" =: c) $ text s
-  return $ domEvent Click e
+  let de = domEvent Click e
+  return de 
 
 evElButtonH :: 
   ( DomBuilder t m
@@ -151,11 +154,12 @@ evElButtonH dyB c s = do
         dyBHide = mkHidden' <$> dyB
         otherAttr = "type" =: "button" <> "class" =: c
 
-evElNumberPad :: DomBuilder t m => Int -> m (Event t T.Text)
+evElNumberPad :: (DomBuilder t m) => Int -> m (Event t T.Text)
 evElNumberPad i = do
   divClass "gr" $ do
     evts <- mapM (\n -> (toText n <$) <$> evElNumberButton (toText n)) [1..i] 
-    return $ leftmost evts
+    let ev = leftmost evts
+    return ev 
   where
     evElNumberButton = evElButton "pad" 
     toText = T.pack . show
@@ -192,10 +196,7 @@ elKai ::
 elKai qn dyIsAnsCorrect dyRdt = do
   let dHide = mkHidden <$> dyIsAnsCorrect
   let dySRdt = fmap makeSort dyRdt
-  elDynAttr "div" dHide $ do 
-    el "p" $ text "せいかい!"
-    elSpace
-    mapM_ (\n -> elOneKai (fmap (getRdt n) dySRdt)) [0..(qn-1)]
+  elDynAttr "div" dHide $ mapM_ (\n -> elOneKai (fmap (getRdt n) dySRdt)) [0..(qn-1)]
 
 elOneKai :: 
   ( DomBuilder t m
@@ -250,6 +251,7 @@ elCharaAnime ::
   , MonadIO (Performable m)
   , PerformEvent t m
   , PostBuild t m
+  , Prerender t m
   , TriggerEvent t m
   ) => Dynamic t Bool -> m (Dynamic t T.Text)
 elCharaAnime isAnsNotCorrect = do
@@ -260,11 +262,21 @@ elCharaAnime isAnsNotCorrect = do
     dNotToggle = not <$> dToggle
     dHide1 = mkHidden <$> dToggle
     dHide2 = mkHidden <$> dNotToggle
+    dHideM = mkHidden . not <$> isAnsNotCorrect
   el "p" $ text ""
   elDynAttr "div" dHide1 $ do elChara0; dynText dyTime 
   elDynAttr "div" dHide2 $ do elChara1; dynText dyTime 
+  elDynAttr "div" dHideM $ do
+     evB <- (elScroll <$) <$> evElButton "pad3" "せいかい!!! ↓↓↓ "
+     widgetHold_ elSpace evB
   pure dyTime 
   
+elScroll :: (DomBuilder t m , Prerender t m) => m ()
+elScroll = do
+    prerender_ blank $ do
+      win <- DOM.currentWindowUnchecked
+      DOM.scrollTo win 0 1000 
+
 elChara0 :: DomBuilder t m => m ()
 elChara0 = elAttr "img" ("src" =: $(static "chara0.png")) blank
 

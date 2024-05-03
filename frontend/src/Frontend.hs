@@ -10,7 +10,7 @@ import Obelisk.Route (R)
 import Obelisk.Generated.Static (static)
 
 import Reflex.Dom.Core 
-  ( text, el, elAttr, blank , (=:) 
+  ( text, el, elAttr, blank , (=:)
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, MonadHold , Performable
   )
