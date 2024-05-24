@@ -5,7 +5,7 @@ import System.Random (randomRIO)
 import qualified Data.Text as T
 
 --import File (fileRead)
-import Reki (rekiDoc)
+import Reki (rekiDoc, rekiDoc2)
 
 type Nen = Int
 type Koto = T.Text
@@ -39,9 +39,9 @@ selectData i rdt = do
   sdts <- selectData (i-1) dts
   return (dt:sdts)
 
-reki :: Int -> IO ([Rdt],[Int]) 
-reki i = do
-  let txs = T.lines rekiDoc 
+reki :: Int -> Int -> IO ([Rdt],[Int]) 
+reki t i = do
+  let txs = T.lines (if t==2 then rekiDoc2 else rekiDoc) 
   let rdts = map makeRData txs
   mondai <- selectData i rdts 
   let jun = makeJun mondai

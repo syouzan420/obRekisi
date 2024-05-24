@@ -6,7 +6,6 @@ import Control.Monad.IO.Class (liftIO,MonadIO)
 import Control.Monad.Fix (MonadFix)
 import qualified Data.Text as T
 import qualified Data.Map.Strict as Map
-import Data.Maybe (fromJust)
 
 import Obelisk.Generated.Static (static)
 
@@ -15,7 +14,7 @@ import EReki (Rdt(..), reki, sortNens)
 import Reflex.Dom.Core 
   ( text, dynText, el, elAttr, divClass, elAttr', blank, prerender_
   , (=:), leftmost, accumDyn, elDynAttr, elDynAttr', prerender 
-  , holdDyn, domEvent, zipDynWith, current, gate, toggle
+  , holdDyn, domEvent, zipDynWith, zipDyn, current, gate, toggle
   , tickLossyFromPostBuildTime, widgetHold_ 
   , tag, constDyn, def, dropdown, value, sample
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
@@ -58,6 +57,9 @@ monNums :: Map.Map Int T.Text
 monNums = Map.fromList [(2,"2"),(3,"3"),(4,"4"),(5,"5"),(6,"6")
                        ,(7,"7"),(8,"8"),(9,"9"),(10,"10")]
 
+monTypes :: Map.Map Int T.Text
+monTypes = Map.fromList [(1,"通史"),(2,"近代史")]
+
 elButtonMondai :: 
   ( DomBuilder t m
   , MonadFix m
@@ -70,24 +72,25 @@ elButtonMondai ::
   ) => m ()
 elButtonMondai = do
   rec
-    tb <- (elMondaiAction dyMonNum <$) <$> evElButton "pad2" "もんだい" 
-    dyMonNum <- numSelector
+    tb <- (elMondaiAction dyTM <$) <$> evElButton "pad2" "もんだい" 
+    dyTypeNum <- dyDropDownNum monTypes 1
+    dyMonNum <- dyDropDownNum monNums qNum
+    let dyTM = zipDyn dyTypeNum dyMonNum
     elSpace 
-    widgetHold_ (elMondaiAction dyMonNum) tb 
+    widgetHold_ (elMondaiAction dyTM) tb 
   pure ()
 
-numSelector :: 
+dyDropDownNum :: 
   ( DomBuilder t m
   , MonadFix m
   , MonadHold t m
   , PostBuild t m
-  ) => m (Dynamic t Int) 
-numSelector = do
+  ) => Map.Map Int T.Text -> Int -> m (Dynamic t Int) 
+dyDropDownNum selector dNum = do
     text ":--:"
-    drMonNum <- dropdown qNum (constDyn monNums) def
-    let dyMonNum = (\i -> read $ T.unpack $ fromJust (Map.lookup i monNums)) 
-                                                              <$> value drMonNum
-    return dyMonNum
+    drChoiceNum <- dropdown dNum (constDyn selector) def
+    let dyChoiceNum = value drChoiceNum
+    return dyChoiceNum
 
 elEvAllButtons :: (DomBuilder t m)  => Int -> m (Event t Button)
 elEvAllButtons qn = do
@@ -108,12 +111,12 @@ elMondaiAction ::
   , PostBuild t m
   , Prerender t m
   , TriggerEvent t m
-  ) => Dynamic t Int -> m ()
-elMondaiAction dyMNum = do
+  ) => Dynamic t (Int,Int) -> m ()
+elMondaiAction dyTM = do
   rec
-    let beMNum = current dyMNum
-    qn <- sample beMNum
-    (dyAns,dyRdt) <- elMondai qn 
+    let beTM = current dyTM
+    (tn,qn) <- sample beTM
+    (dyAns,dyRdt) <- elMondai tn qn 
     dyTime <- elCharaAnime (fmap not dyIsAnsCorrect)
     let dyIsTime60 = 
           fmap (\ti -> (ti/="start") && (read . T.unpack) ti>(60::Int)) dyTime
@@ -221,9 +224,9 @@ elOneKai dyRdt = do
 elMondai :: 
   ( DomBuilder t m
   , Prerender t m
-  ) => Int -> m (Dynamic t T.Text, Dynamic t [Rdt]) 
-elMondai qn = do
-  dyRdtAns <- prerender (return ([],[])) $ liftIO $ reki qn 
+  ) => Int -> Int -> m (Dynamic t T.Text, Dynamic t [Rdt]) 
+elMondai tn qn = do
+  dyRdtAns <- prerender (return ([],[])) $ liftIO $ reki tn qn 
   let dyRdt = fmap fst dyRdtAns
       dyAns = fmap makeAns dyRdtAns
   return (dyAns,dyRdt) 
