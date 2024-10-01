@@ -1,6 +1,6 @@
 module Frontend where
 
-import Common.Api (commonStuff)
+--import Common.Api (commonStuff)
 import Common.Route (FrontendRoute (..))
 import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Fix (MonadFix)
@@ -15,7 +15,7 @@ import Reflex.Dom.Core
   , PostBuild, MonadHold , Performable
   )
 
-import Widget (elButtonMondai, elChara, elSpace)
+import Widget (elButtonMondai, elSpace, drawToCanvas)
 
 
 data Button = ButtonNumber T.Text | ButtonClear 
@@ -56,12 +56,11 @@ frontendBody ::
   ) => m ()
 frontendBody = do 
   el "h1" $ text "國史 ならびかへ"
-
-  el "p" $ text $ T.pack commonStuff
-
-  elSpace
---  elAttr "div" ("display" =: "flex") $ do
-  elChara
+--  el "p" $ text $ T.pack commonStuff
+  elAttr "canvas" ("id" =: "canvas" <> "width" =: "130" <> "height" =: "115") blank
+  elAttr "div" ("style" =: "display:none;") $
+    elAttr "img" ("id" =: "ch0" <> "width" =: "114" <> "height" =: "114" <> "src" =: $(static "chara_mid.png")) blank
+  drawToCanvas
   elSpace
   elButtonMondai 
   elSpace

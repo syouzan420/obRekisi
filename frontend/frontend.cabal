@@ -19,6 +19,7 @@ library
                , common
                , jsaddle
                , jsaddle-dom
+               , ghcjs-dom
                , lens
                , obelisk-executable-config-lookup
                , obelisk-frontend

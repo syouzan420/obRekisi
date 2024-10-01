@@ -1,7 +1,16 @@
-module Widget (elButtonMondai, elChara, elSpace) where
+module Widget (elButtonMondai, elSpace, drawToCanvas) where
 
-import qualified JSDOM as DOM
-import qualified JSDOM.Custom.Window as DOM
+--import qualified JSDOM as DOM
+import JSDOM
+--import qualified GHCJS.DOM.Document as DOC
+import qualified JSDOM.Types as DOM
+import JSDOM.Custom.Window (scrollTo) 
+import qualified JSDOM.Generated.NonElementParentNode as DOM
+import qualified JSDOM.Generated.HTMLCanvasElement as Can 
+--import qualified JSDOM.Generated.HTMLImageElement as Img
+--import qualified JSDOM.Generated.Element as DOM
+import JSDOM.Generated.Element(unElement) 
+import qualified JSDOM.Generated.CanvasRenderingContext2D as DOM 
 import Control.Monad.IO.Class (liftIO,MonadIO)
 import Control.Monad.Fix (MonadFix)
 import qualified Data.Text as T
@@ -50,8 +59,8 @@ makeSort rdt = map (\(n,(k,h,c)) -> Rdt n k h c) $
 elSpace :: DomBuilder t m => m ()
 elSpace = el "p" $ text ""
 
-elChara :: DomBuilder t m => m ()
-elChara = elAttr "img" ("src" =: $(static "chara0_mid.png")) blank
+--elChara :: DomBuilder t m => m ()
+--elChara = elAttr "img" ("src" =: $(static "chara0_mid.png")) blank
 
 monNums :: Map.Map Int T.Text
 monNums = Map.fromList [(2,"2"),(3,"3"),(4,"4"),(5,"5"),(6,"6")
@@ -245,6 +254,7 @@ elTimer isAnsNotCorrect = do
   let beBool = current isAnsNotCorrect 
   let evNTime = gate beBool evTime
   let evTimeText = T.pack . show . (+1) . _tickInfo_n <$> evNTime
+--  widgetHold_ blank $ drawToCanvas <$ evTime
   holdDyn "start" evTimeText 
   
 elCharaAnime :: 
@@ -277,8 +287,42 @@ elCharaAnime isAnsNotCorrect = do
 elScroll :: (DomBuilder t m , Prerender t m) => m ()
 elScroll = do
     prerender_ blank $ do
-      win <- DOM.currentWindowUnchecked
-      DOM.scrollTo win 0 1000 
+      win <- currentWindowUnchecked
+      scrollTo win 0 1000 
+
+--loadImage :: (DomBuilder t m, Prerender t m) => m () 
+--loadImage = prerender_ blank $ do
+--  doc <- currentDocumentUnchecked
+--  img <- DOC.createElement doc ("img"::String)
+--  let ie = DOM.HTMLImageElement (unElement img)
+--  setId ie ("ch0"::String)
+--  Img.setWidth ie 114
+--  Img.setHeight ie 114
+--  Img.setSrc ie ($(static "chara_mid.png")::String)
+
+
+drawToCanvas :: (DomBuilder t m, Prerender t m) => m ()
+drawToCanvas = prerender_ blank $ do
+  doc <- currentDocumentUnchecked
+  canvas <- DOM.getElementByIdUnchecked doc ("canvas" :: T.Text)
+  let canvasElement = DOM.HTMLCanvasElement (unElement canvas)
+  c <- Can.getContextUnchecked canvasElement ("2d"::String) ([] :: [DOM.JSString])
+  let cx = DOM.CanvasRenderingContext2D (DOM.unRenderingContext c)
+--  img <- DOC.createElement doc ("img"::String)
+  img <- DOM.getElementByIdUnchecked doc ("ch0" :: String)
+  let ie = DOM.HTMLImageElement (unElement img)
+--  Img.setSrc ie ($(static "chara0.png") :: T.Text)
+  let ci = DOM.CanvasImageSource $ DOM.unHTMLImageElement ie 
+--  DOM.fillRect cx 10 10 100 100
+  DOM.drawImage cx ci 0 0 
+  DOM.setFont cx ("bold 23px serif"::T.Text)
+  DOM.setFillStyle cx ("cyan"::String)
+  DOM.fillText cx ("ふるい"::T.Text) 0 60 (Just 100) 
+  DOM.strokeText cx ("ふるい"::T.Text) 0 60 (Just 100) 
+  DOM.fillText cx ("じゅんに"::T.Text) 30 77 (Just 80) 
+  DOM.strokeText cx ("じゅんに"::T.Text) 30 77 (Just 80) 
+  DOM.fillText cx ("ならべて"::T.Text) 40 95 (Just 80) 
+  DOM.strokeText cx ("ならべて"::T.Text) 40 95 (Just 80) 
 
 elChara0 :: DomBuilder t m => m ()
 elChara0 = elAttr "img" ("src" =: $(static "chara0.png")) blank
