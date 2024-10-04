@@ -10,7 +10,7 @@ import Obelisk.Route (R)
 import Obelisk.Generated.Static (static)
 
 import Reflex.Dom.Core 
-  ( text, el, elAttr, blank , (=:)
+  ( text, el, elAttr, blank , (=:), divClass
   , DomBuilder, Prerender, PerformEvent, TriggerEvent
   , PostBuild, MonadHold , Performable
   )
@@ -58,7 +58,7 @@ frontendBody = do
   el "h1" $ text "國史 ならびかへ"
 --  el "p" $ text $ T.pack commonStuff
   elAttr "canvas" ("id" =: "canvas" <> "width" =: "130" <> "height" =: "115") blank
-  elAttr "div" ("style" =: "display:none;") $
+  divClass "res" $
     elAttr "img" ("id" =: "ch0" <> "width" =: "114" <> "height" =: "114" <> "src" =: $(static "chara_mid.png")) blank
   drawToCanvas
   elSpace

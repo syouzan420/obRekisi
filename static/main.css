@@ -21,6 +21,9 @@ p {
   padding: 1px 17px 2px;
   font: 400 15px system-ui;
 }
+.res {
+  display: none;
+}
 .inputs {
   display: inline;
   padding: 5px;
