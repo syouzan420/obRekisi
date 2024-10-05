@@ -58,8 +58,8 @@ frontendBody = do
   el "h1" $ text "國史 ならびかへ"
 --  el "p" $ text $ T.pack commonStuff
   elAttr "canvas" ("id" =: "canvas" <> "width" =: "130" <> "height" =: "115") blank
-  divClass "res" $
-    elAttr "img" ("id" =: "ch0" <> "width" =: "114" <> "height" =: "114" <> "src" =: $(static "chara_mid.png")) blank
+--  divClass "res" $
+  elAttr "img" ("id" =: "ch0" <> "width" =: "114" <> "height" =: "114" <> "src" =: $(static "chara_mid.png")) blank
   drawToCanvas
   elSpace
   elButtonMondai 

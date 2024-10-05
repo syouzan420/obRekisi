@@ -1,1 +1,1 @@
-All good (7 modules, at 23:49:33)
+Ghcid has stopped.
