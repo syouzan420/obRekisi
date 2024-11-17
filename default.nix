@@ -34,7 +34,10 @@ project ./. ({ pkgs, ... }: {
       code = "1";
       name = "0.1";
     };
+  } // pkgs.lib.optionalAttrs androidIsRelease {
+    gradleTask = "bundleRelease";
   };
+
   ios.bundleIdentifier = "org.yokop.rekisi";
   ios.bundleName = "Rekisi";
 })
